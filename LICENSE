@@ -1,0 +1,23 @@
+Stagemarkt API (Unofficial) License
+
+Copyright (c) 2025-present Soheab. All rights reserved.
+
+Permission is hereby granted to any person obtaining a copy of this software and associated documentation files (the "Software") to use the Software for personal, non-commercial, educational purposes.
+
+Restrictions
+-----------
+- Modification: You may NOT modify, adapt, translate, reverse engineer, or create derivative works of the Software or any part thereof.
+- Redistribution: You may NOT redistribute, sublicense, sell, or otherwise make the Software or any derivative available to any third party, whether for commercial or non-commercial purposes.
+- Production/Public Use: You may NOT deploy or use the Software in any production, commercial, or publicly accessible environment without prior explicit permission from the copyright holder.
+- Required Notice: If you receive permission for production/public use, you must provide a clear, visible notice that:
+	(1) this is an unofficial wrapper,
+	(2) you are not affiliated with Stagemarkt/SBB,
+	(3) the API is undocumented and may change,
+	(4) copyright (c) 2025-present Soheab.
+- API/Endpoint Usage: This project interacts with third-party endpoints discovered through browser Developer Tools. You are solely responsible for any use and must comply with applicable laws, terms, and policies.
+
+Disclaimer
+---------
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+By using or accessing the Software, you agree to these terms.
