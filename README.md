@@ -2,7 +2,7 @@
 
 Dit is een **onofficiële** Python wrapper voor Stagemarkt.nl.
 
-Voor zover bekend is er **geen publieke, officiële API-documentatie**. De gebruikte endpoints zijn reverse-engineered via de Network-tab in browser Developer Tools (educatief doel).
+Voor zover bekend is er **geen publieke, officiële API-documentatie**. De gebruikte endpoints zijn reverse-engineered via de Network-tab in browser Developer Tools.
 
 ## Website
 
