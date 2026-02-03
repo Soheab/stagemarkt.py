@@ -8,3 +8,14 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Exports
+*.xlsx
+*.json
+
+# Locks
+uv.lock*
+pylock*.toml
+
+# Custom
+*test.*
