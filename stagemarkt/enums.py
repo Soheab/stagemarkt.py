@@ -80,4 +80,6 @@ class Straal(Enum):
     KM_10 = 10
     KM_15 = 15
     KM_25 = 25
+    KM_50 = 50
+    KM_75 = 75
     KM_100 = 100
