@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from urllib.parse import quote_plus, urlencode
 
-__all__ = ("maak_stagemarkt_link",)
+__all__ = ("maak_stagemarkt_link", "maak_zoeklink")
 
 
 def maak_stagemarkt_link(
@@ -70,3 +70,31 @@ def maak_stagemarkt_link(
     query_string = urlencode(params)
 
     return f"{base_url}?{query_string}"
+
+
+def maak_zoeklink(
+    *,
+    niveau: int,
+    straal: int,
+    crebocode: int,
+    plaats_postcode: str,
+    educatie_type: int = 1,
+) -> str:
+    """Maak een Stagemarkt zoeklink.
+
+    Returns
+    -------
+    str
+        Volledige Stagemarkt zoek URL.
+    """
+    params = {
+        "niveau": niveau,
+        "type": educatie_type,
+        "range": straal,
+        "crebocode": crebocode,
+        "plaatsPostcode": plaats_postcode,
+    }
+
+    query_string = urlencode(params)
+
+    return f"https://stagemarkt.nl/stages?{query_string}"

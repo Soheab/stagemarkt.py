@@ -28,7 +28,14 @@ async def main() -> None:
         crebocode = 25998
         straal = Straal.KM_25
 
+        zelf_zoeklink = maak_zoeklink(
+            niveau=niveau.value,
+            straal=straal.value,
+            crebocode=crebocode,
+            plaats_postcode=plaats_postcode,
+        )
         print(f"Zoeken naar stages (Niveau: {niveau.name}, Locatie: {plaats_postcode}, Straal: {straal.value}km)...")
+        print(f"Zelf gemaakte zoeklink: {zelf_zoeklink}")
         print("Debug: Verzenden van verzoek naar API...")
 
         educaties = await client.zoek_stages(
