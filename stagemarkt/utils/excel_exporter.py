@@ -11,7 +11,8 @@ from pathlib import Path
 import xlsxwriter
 import xlsxwriter.worksheet
 
-from .base_exporter import AttrSpec, BaseExporter, NormalizedAttr, SortSpec
+from .base_exporter import BaseExporter, SortSpec
+from .field import Field
 
 __all__ = ("ExcelExporter", "to_excel")
 
@@ -60,7 +61,7 @@ class ExcelExporter(BaseExporter):
         objects: Sequence[object],
         *,
         sheet_name: str = "Sheet1",
-        names: tuple[str | None, list[AttrSpec]] | None = None,
+        names: tuple[str | None, list[Field]] | None = None,
         sort: SortSpec | None = None,
     ) -> None:
         """
@@ -74,7 +75,7 @@ class ExcelExporter(BaseExporter):
             Sequence of objects to export.
         sheet_name: str
             Name of the worksheet. Default is "Sheet1".
-        names: tuple[str | None, list[AttrSpec]] | None
+        names: tuple[str | None, list[Field]] | None
             Optional header title and attribute specifications to define
             columns. If omitted, attributes are inferred from the first object.
 
@@ -88,15 +89,14 @@ class ExcelExporter(BaseExporter):
             return
 
         header_title: str | None = None
-        attrs: list[AttrSpec] | None = None
+        attrs: list[Field] | None = None
         if names is not None:
             header_title, attrs = names
 
-        attr_specs: Sequence[AttrSpec]
+        attr_specs: Sequence[Field]
         attr_specs = self._infer_attributes(objects[0]) if attrs is None else attrs
 
-        normalized_attrs = self._normalize_attrs(attr_specs)
-        headers = [label for label, _ in normalized_attrs]
+        headers = [field.header_label() for field in attr_specs]
 
         workbook = xlsxwriter.Workbook(str(path), {"constant_memory": self._constant_memory})
         worksheet = workbook.add_worksheet(sheet_name)
@@ -120,19 +120,24 @@ class ExcelExporter(BaseExporter):
                 worksheet.write(current_row, 0, header_title, title_format)
             current_row += 1
 
-        if headers:
-            worksheet.write_row(current_row, 0, headers, header_format)
+        if headers and any(header is not None for header in headers):
+            worksheet.write_row(
+                current_row,
+                0,
+                [header or "" for header in headers],
+                header_format,
+            )
             current_row += 1
 
         worksheet.freeze_panes(current_row, 0)
 
         for row_idx, obj in enumerate(self._sort_objects(objects, sort), start=current_row):
-            row_data = self._extract_row_data(obj, normalized_attrs)
+            row_data = self._extract_row_data(obj, attr_specs)
             self._write_row(worksheet, row_idx, row_data, date_format)
 
         workbook.close()
 
-    def _infer_attributes(self, obj: Any) -> list[str]:
+    def _infer_attributes(self, obj: Any) -> list[Field]:
         """
         Infer attribute names to export from the first object.
 
@@ -143,54 +148,54 @@ class ExcelExporter(BaseExporter):
 
         Returns
         -------
-        list[str]
-            A list of attribute names.
+        list[Field]
+            A list of Field instances.
         """
         if isinstance(obj, dict):
-            return list(obj.keys())
+            return [Field(str(key), label=str(key)) for key in obj]
 
         if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
-            return [f.name for f in dataclasses.fields(obj) if not f.name.startswith("_")]
+            return [Field(f.name) for f in dataclasses.fields(obj) if not f.name.startswith("_")]
 
         slots = self._get_slots(type(obj))
         if slots:
-            return sorted([s for s in slots if not s.startswith("_")])
+            return [Field(s) for s in sorted([s for s in slots if not s.startswith("_")])]
 
         if hasattr(obj, "__dict__"):
-            return sorted([k for k in vars(obj) if not k.startswith("_")])
+            return [Field(k) for k in sorted([k for k in vars(obj) if not k.startswith("_")])]
 
         return []
 
     def _extract_row_data(
         self,
         obj: Any,
-        normalized_attrs: list[NormalizedAttr],
-        all_objects: Sequence[Any] | None = None,
+        attrs: Sequence[Field],
     ) -> list[Any]:
         """
-        Extract data for a single row based on normalized attributes.
+        Extract data for a single row based on Field attributes.
 
         Parameters
         ----------
         obj: Any
             The primary object to read values from.
-        normalized_attrs: list[NormalizedAttr]
-            Normalized attribute specifications.
-        all_objects: Sequence[Any] | None
-            Additional objects for multi-object attribute access.
-
+        attrs: Sequence[Field]
+            Field attribute specifications.
         Returns
         -------
         list[Any]
             Row values ready for writing.
         """
         row: list[Any] = []
-        for _, value in self._iter_normalized_values(
-            obj,
-            normalized_attrs,
-            all_objects,
-        ):
-            row.append(self._convert_cell_value(value))
+        for field in attrs:
+            raw = field.get(obj, include_empty=self._include_empty)
+            if not isinstance(raw, dict):
+                row.append(self._convert_cell_value(raw))
+                continue
+            for root, fields in raw.items():
+                key = root if root is not None else field.export_label()
+                if key is None:
+                    continue
+                row.append(self._convert_cell_value(fields))
         return row
 
     def _convert_cell_value(self, val: Any) -> Any:
@@ -207,9 +212,6 @@ class ExcelExporter(BaseExporter):
         Any
             A value suitable for xlsxwriter.
         """
-        if self._is_empty(val) and not self._include_empty:
-            return None
-
         # Primitives supported by Excel
         if isinstance(val, self._PRIMITIVES):
             return val
@@ -262,7 +264,7 @@ def to_excel(
     *,
     path: Path,
     objects: Sequence[object],
-    names: tuple[str | None, list[AttrSpec]] | None = None,
+    names: tuple[str | None, list[Field]] | None = None,
     sheet_name: str = "Sheet1",
     include_empty: bool = True,
     constant_memory: bool = True,
@@ -279,7 +281,7 @@ def to_excel(
         The file path to write the Excel file to.
     objects: Sequence[object]
         The objects to export.
-    names: tuple[str | None, list[AttrSpec]] | None
+    names: tuple[str | None, list[Field]] | None
         Optional header title and attribute specifications.
     sheet_name: str
         The name of the worksheet. Default is "Sheet1".

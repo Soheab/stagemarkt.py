@@ -11,7 +11,7 @@ from stagemarkt import (
     StagemarktClient,
     Straal,
 )
-from stagemarkt.utils import AttrField, to_excel
+from stagemarkt.utils import Field, to_excel
 
 
 async def main() -> None:
@@ -50,14 +50,14 @@ async def main() -> None:
             print("Geen educaties gevonden met deze filters.")
             return
 
-        # Exporteer naar Excel (gebruik AttrField voor correcte types)
+        # Exporteer naar Excel (gebruik Field)
         attributes = [
-            AttrField(label="Bedrijfsnaam", path="organisatie.naam"),
-            AttrField(label="Titel", path="title"),
-            AttrField(label="Leerweg", path="leerweg"),
-            AttrField(label="Plaats", path="adres.plaats"),
-            AttrField(label="Email", path="organisatie.email"),
-            AttrField(label="Website", path="organisatie.website"),
+            Field("organisatie.naam", label="Bedrijfsnaam"),
+            Field("title", label="Titel"),
+            Field("leerweg", label="Leerweg"),
+            Field("adres.plaats", label="Plaats"),
+            Field("organisatie.email", label="Email"),
+            Field("organisatie.website", label="Website"),
         ]
 
         output_file = Path("stages_filtered_export.xlsx")

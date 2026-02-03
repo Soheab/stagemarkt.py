@@ -6,14 +6,15 @@ from collections.abc import Iterable, Mapping, Sequence
 import dataclasses
 import datetime
 from enum import Enum
-from itertools import filterfalse
 import json
 from pathlib import Path
 
-from .base_exporter import AttrSpec, BaseExporter, SortSpec
+from .base_exporter import BaseExporter, SortSpec
 
 if TYPE_CHECKING:
     from _typeshed import SupportsWrite
+
+    from .field import Field
 
 __all__ = ("JSONExporter", "to_json")
 
@@ -61,7 +62,7 @@ class JSONExporter(BaseExporter):
         objects: Sequence[object],
         *,
         root_key: str | None = None,
-        attrs: list[AttrSpec] | None = None,
+        attrs: list[Field] | None = None,
         sort: SortSpec | None = None,
     ) -> None:
         """
@@ -76,7 +77,7 @@ class JSONExporter(BaseExporter):
         root_key: str | None
             Optional root key to wrap the serialized list. If provided, the
             output becomes a dict with the list under `root_key`.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications to extract. If None, objects are
             converted using generic rules.
 
@@ -95,7 +96,7 @@ class JSONExporter(BaseExporter):
         fp: SupportsWrite[str],
         *,
         root_key: str | None = None,
-        attrs: list[AttrSpec] | None = None,
+        attrs: list[Field] | None = None,
         sort: SortSpec | None = None,
     ) -> None:
         """
@@ -109,7 +110,7 @@ class JSONExporter(BaseExporter):
             A file-like object with a `.write(str)` method.
         root_key: str | None
             Optional root key to wrap the serialized list.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications to extract.
 
         Returns
@@ -125,7 +126,7 @@ class JSONExporter(BaseExporter):
         objects: Sequence[object],
         *,
         root_key: str | None = None,
-        attrs: list[AttrSpec] | None = None,
+        attrs: list[Field] | None = None,
         sort: SortSpec | None = None,
     ) -> str:
         """
@@ -137,7 +138,7 @@ class JSONExporter(BaseExporter):
             Sequence of objects to serialize.
         root_key: str | None
             Optional root key to wrap the serialized list.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications to extract.
 
         Returns
@@ -152,7 +153,7 @@ class JSONExporter(BaseExporter):
             indent=self._indent,
         )
 
-    def serialize(self, obj: Any, attrs: list[AttrSpec] | None = None, objects: Sequence[Any] | None = None) -> JSONValue:
+    def serialize(self, obj: Any, attrs: list[Field] | None = None) -> JSONValue:
         """
         Serialize a single object to a JSON-compatible value.
 
@@ -160,23 +161,20 @@ class JSONExporter(BaseExporter):
         ----------
         obj: Any
             The object to serialize.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications to extract for `obj`.
-        objects: Sequence[Any] | None
-            Additional objects for multi-object attribute access.
-
         Returns
         -------
         JSONValue
             A JSON-compatible value (primitive, dict, or list).
         """
-        return self._convert(obj, attrs, objects)
+        return self._convert(obj, attrs)
 
     def _build_output(
         self,
         objects: Sequence[object],
         root_key: str | None,
-        attrs: list[AttrSpec] | None,
+        attrs: list[Field] | None,
         sort: SortSpec | None = None,
     ) -> JSONValue:
         """
@@ -188,7 +186,7 @@ class JSONExporter(BaseExporter):
             Objects to serialize.
         root_key: str | None
             Optional root key to wrap the serialized list.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications to extract.
 
         Returns
@@ -221,7 +219,7 @@ class JSONExporter(BaseExporter):
             indent=self._indent,
         )
 
-    def _convert(self, obj: Any, attrs: list[AttrSpec] | None = None, objects: Sequence[Any] | None = None) -> JSONValue:
+    def _convert(self, obj: Any, attrs: list[Field] | None = None) -> JSONValue:
         """
         Convert any object to a JSON-compatible value.
 
@@ -229,11 +227,8 @@ class JSONExporter(BaseExporter):
         ----------
         obj: Any
             Primary object to convert.
-        attrs: list[AttrSpec] | None
+        attrs: list[Field] | None
             Attribute specifications.
-        objects: Sequence[Any] | None
-            Additional objects for multi-object attribute access.
-
         Returns
         -------
         JSONValue
@@ -268,7 +263,7 @@ class JSONExporter(BaseExporter):
 
         # Specific attributes requested
         if attrs is not None:
-            return self._convert_with_attrs(obj, attrs, objects)
+            return self._convert_with_attrs(obj, attrs)
 
         # Dataclasses
         if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
@@ -300,8 +295,7 @@ class JSONExporter(BaseExporter):
         dict[str, Any]
             Converted dictionary.
         """
-        result = {str(k): self._convert(v) for k, v in obj.items()}
-        return self._filter_dict(result)
+        return {str(k): self._convert(v) for k, v in obj.items()}
 
     def _convert_iterable(self, obj: Iterable[Any]) -> list[Any]:
         """
@@ -319,12 +313,9 @@ class JSONExporter(BaseExporter):
         """
         # Use map for efficient conversion
         converted = map(self._convert, obj)
-        if self._include_empty:
-            return list(converted)
-        # Use filterfalse with _is_empty for filtering
-        return list(filterfalse(self._is_empty, converted))
+        return list(converted)
 
-    def _convert_with_attrs(self, obj: Any, attrs: list[AttrSpec], objects: Sequence[Any] | None = None) -> dict[str, Any]:
+    def _convert_with_attrs(self, obj: Any, attrs: list[Field]) -> dict[str, Any]:
         """
         Convert object extracting only specified attributes.
 
@@ -332,22 +323,26 @@ class JSONExporter(BaseExporter):
         ----------
         obj: Any
             Object to convert.
-        attrs: list[AttrSpec]
+        attrs: list[Field]
             Attribute specifications to extract.
-        objects: Sequence[Any] | None
-            Additional objects for multi-object attribute access.
-
         Returns
         -------
         dict[str, Any]
             Dictionary of extracted attributes.
         """
-        result: dict[str, Any] = {
-            label: value
-            for label, value in self._iter_attr_values(obj, attrs, objects, convert=self._convert)
-            if self._should_include(value)
-        }
-
+        result: dict[str, Any] = {}
+        for field in attrs:
+            raw = field.get(obj, include_empty=self._include_empty)
+            if not isinstance(raw, dict):
+                continue
+            for root, fields in raw.items():
+                key = root if root is not None else field.export_label()
+                if key is None:
+                    continue
+                value = self._convert(fields)
+                if value is None and not self._include_empty:
+                    continue
+                result[key] = value
         return result
 
     def _bytes_to_text(self, obj: bytes | bytearray) -> str:
@@ -385,8 +380,7 @@ class JSONExporter(BaseExporter):
             Converted dictionary of public fields.
         """
         fields = dataclasses.fields(obj)
-        result = {f.name: self._convert(getattr(obj, f.name)) for f in fields if not f.name.startswith("_")}
-        return self._filter_dict(result)
+        return {f.name: self._convert(getattr(obj, f.name)) for f in fields if not f.name.startswith("_")}
 
     def _convert_slotted(self, obj: Any, slots: frozenset[str]) -> dict[str, Any]:
         """
@@ -405,8 +399,7 @@ class JSONExporter(BaseExporter):
             Converted dictionary of public slots.
         """
         public_slots = (s for s in slots if not s.startswith("_"))
-        result = {slot: self._convert(getattr(obj, slot)) for slot in public_slots if hasattr(obj, slot)}
-        return self._filter_dict(result)
+        return {slot: self._convert(getattr(obj, slot)) for slot in public_slots if hasattr(obj, slot)}
 
     def _convert_dict_obj(self, obj: Any) -> dict[str, Any]:
         """
@@ -422,33 +415,14 @@ class JSONExporter(BaseExporter):
         dict[str, Any]
             Converted dictionary of public attributes.
         """
-        result = {k: self._convert(v) for k, v in vars(obj).items() if not k.startswith("_")}
-        return self._filter_dict(result)
-
-    def _filter_dict(self, d: dict[str, Any]) -> dict[str, Any]:
-        """
-        Filter dictionary based on include_empty setting.
-
-        Parameters
-        ----------
-        d: dict[str, Any]
-            Input dictionary.
-
-        Returns
-        -------
-        dict[str, Any]
-            Filtered dictionary.
-        """
-        if self._include_empty:
-            return d
-        return {k: v for k, v in d.items() if self._should_include(v)}
+        return {k: self._convert(v) for k, v in vars(obj).items() if not k.startswith("_")}
 
 
 def to_json(
     *,
     path: Path,
     objects: Sequence[object],
-    names: tuple[str | None, list[AttrSpec]] | None = None,
+    names: tuple[str | None, list[Field]] | None = None,
     indent: int = 4,
     include_empty: bool = True,
     ensure_ascii: bool = False,
@@ -463,9 +437,8 @@ def to_json(
         Output file path.
     objects: Sequence[object]
         Objects to serialize.
-    names: tuple[str | None, list[AttrSpec]] | None
-        Tuple of (root_key, attrs) for custom output structure. If `root_key`
-        is None and `attrs` is provided, a best-effort key is inferred.
+    names: tuple[str | None, list[Field]] | None
+        Tuple of (root_key, attrs) for custom output structure.
     indent: int
         Indentation for pretty-printing JSON. Default is 4.
     include_empty: bool
@@ -486,14 +459,6 @@ def to_json(
 
     if names is not None:
         root_key, attrs = names
-        if root_key is None and attrs:
-            last = attrs[-1]
-            if isinstance(last, tuple):
-                root_key = last[0]
-            elif isinstance(last, str):
-                root_key = last
-            else:
-                root_key = "value"
         exporter.export(path, objects, root_key=root_key, attrs=attrs, sort=sort)
     else:
         exporter.export(path, objects, sort=sort)

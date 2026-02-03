@@ -7,7 +7,7 @@ from stagemarkt import (
     StagemarktClient,
     Straal,
 )
-from stagemarkt.utils import AttrField, to_excel
+from stagemarkt.utils import Field, to_excel
 
 
 async def main() -> None:
@@ -36,16 +36,16 @@ async def main() -> None:
             print("Geen organisaties gevonden.")
             return
 
-        # Definieer kolommen met AttrField (correcte types)
+        # Definieer kolommen met Field
         attributes = [
-            AttrField("Naam").add("naam"),
-            AttrField("Plaats").add("vestigingsadres.plaats"),
-            AttrField("Straat").add("vestigingsadres.straat"),
-            AttrField("Website").add("website"),
-            AttrField("Email").add("email"),
-            AttrField("Telefoon").add("telefoonnummer"),
-            AttrField("Aantal Leerplaatsen").add("aantal_leerplaatsen"),
-            AttrField("Leerbedrijf ID").add("leerbedrijf_id"),
+            Field("naam", label="Naam"),
+            Field("vestigingsadres.plaats", label="Plaats"),
+            Field("vestigingsadres.straat", label="Straat"),
+            Field("website", label="Website"),
+            Field("email", label="Email"),
+            Field("telefoonnummer", label="Telefoon"),
+            Field("aantal_leerplaatsen", label="Aantal Leerplaatsen"),
+            Field("leerbedrijf_id", label="Leerbedrijf ID"),
         ]
 
         output_file = Path("organisaties_export.xlsx")

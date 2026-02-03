@@ -1,12 +1,12 @@
-from .base_exporter import AttrField, sort_on
 from .excel_exporter import ExcelExporter, to_excel
+from .field import Field, FieldOption
 from .json_exporter import JSONExporter, to_json
 from .stagemarkt import maak_stagemarkt_link, maak_zoeklink
 
 __all__ = (
-    "AttrField",
-    "sort_on",
     "ExcelExporter",
+    "Field",
+    "FieldOption",
     "JSONExporter",
     "maak_stagemarkt_link",
     "maak_zoeklink",

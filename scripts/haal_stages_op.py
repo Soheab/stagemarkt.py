@@ -10,7 +10,7 @@ from stagemarkt import (
     StagemarktClient,
     Straal,
 )
-from stagemarkt.utils import AttrField, maak_stagemarkt_link, maak_zoeklink, to_excel, to_json
+from stagemarkt.utils import Field, FieldOption, maak_stagemarkt_link, maak_zoeklink, to_excel, to_json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--export", choices=["excel", "json"], default="excel", help="Export formaat: excel of json")
@@ -46,21 +46,25 @@ async def main() -> None:
         print(f"✓ {len(educaties)} educaties opgehaald")
 
         attributes = [
-            ("Bedrijfsnaam", "organisatie.naam"),
-            ("Straat", "adres.straat"),
-            ("Huisnummer", "adres.huisnummer"),
-            ("Postcode", "adres.postcode"),
-            ("Plaats", "adres.plaats"),
-            AttrField(label="Telefoonnummer", path="telefoon").fallback("organisatie.telefoonnummer"),
-            AttrField(label="Email", path="emailadres").fallback("organisatie.emailadres").fallback("organisatie.email"),
-            AttrField(label="Website", path="website").fallback("organisatie.website"),
-            ("Contactpersoon Naam", "contactpersoon"),
-            ("Contactpersoon Tel", "telefoon"),
-            AttrField(label="Contactpersoon Email", path="emailadres")
-            .fallback("organisatie.emailadres")
-            .fallback("organisatie.email"),
-            AttrField(label="Beschrijving", path="omschrijving"),
-            AttrField(label="Stagemarkt Link").transform(
+            Field("organisatie.naam", label="Bedrijfsnaam"),
+            Field("adres.straat", label="Straat"),
+            Field("adres.huisnummer", label="Huisnummer"),
+            Field("adres.postcode", label="Postcode"),
+            Field("adres.plaats", label="Plaats"),
+            Field(label="Telefoonnummer").add("telefoon", fallback="organisatie.telefoonnummer"),
+            Field(label="Email").add(
+                "emailadres",
+                fallback=FieldOption("organisatie.emailadres", fallback="organisatie.email"),
+            ),
+            Field(label="Website").add("website", fallback="organisatie.website"),
+            Field("contactpersoon", label="Contactpersoon Naam"),
+            Field("telefoon", label="Contactpersoon Tel"),
+            Field(label="Contactpersoon Email").add(
+                "emailadres",
+                fallback=FieldOption("organisatie.emailadres", fallback="organisatie.email"),
+            ),
+            Field("omschrijving", label="Beschrijving"),
+            Field(label="Stagemarkt Link").transform(
                 lambda educatie: maak_stagemarkt_link(
                     educatie_id=educatie.leerplaats_id,
                     titel=educatie.title,
@@ -75,12 +79,17 @@ async def main() -> None:
 
         output_file = Path(f"stages_export.{export_formaat}")
         exporter_meth = to_excel if export_formaat == "xlsx" else to_json
+
+        kwargs = {}
+        if export_formaat == "xlsx":
+            kwargs["sheet_name"] = f"Stages-{crebocode}"
+
         exporter_meth(
             path=output_file,
             objects=educaties,
             names=("stages" if export_formaat == "json" else None, attributes),
             include_empty=True,
-            **{"sheet_name": f"Stages-{crebocode}" if export_formaat == "xlsx" else {}},  # noqa: PIE804 # pyright: ignore[reportArgumentType]
+            **kwargs,
             sort="organisatie.naam",
         )
 

@@ -40,9 +40,9 @@ De map `scripts/` bevat kant-en-klare voorbeelden:
 
 ## Exporters
 
-- Voor Excel-export verwacht `to_excel` een `names=(title, attrs)` tuple waarbij `attrs` een `list[AttrSpec]` is.
-- Gebruik `AttrField` om kolommen te definiëren; cast desnoods naar `list[AttrSpec]` om type checkers tevreden te stellen.
-- Niet alle velden zijn altijd aanwezig; exporters ondersteunen `include_empty`.
+- Voor Excel-export verwacht `to_excel` een `names=(title, attrs)` tuple waarbij `attrs` een `list[Field]` is.
+- Gebruik `Field` om kolommen te definiëren (intern opgebouwd uit `FieldOption`).
+- Niet alle velden zijn altijd aanwezig; gebruik `include_empty=False` om lege waarden te negeren.
 
 ## Rate limiting & performance
 
