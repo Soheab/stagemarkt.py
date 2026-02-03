@@ -44,6 +44,10 @@ class Organisatie:
         Vestigingsadres van de organisatie, indien aanwezig.
     website: str | None
         Website van de organisatie, indien aanwezig.
+    telefoonnummer: str | None
+        Telefoonnummer van de organisatie, indien aanwezig.
+    emailadres: str | None
+        E-mailadres van de organisatie, indien aanwezig.
     """
 
     __slots__ = (
@@ -51,6 +55,7 @@ class Organisatie:
         "afstand",
         "bedrijfsgrootte",
         "email",
+        "emailadres",
         "id",
         "kenmerken",
         "leerbedrijf_id",
@@ -58,6 +63,7 @@ class Organisatie:
         "logo_url",
         "naam",
         "omschrijving",
+        "telefoonnummer",
         "vestigingsadres",
         "website",
     )
@@ -84,6 +90,8 @@ class Organisatie:
 
         # education detail search
         self.omschrijving: str | None = data.get("omschrijving")
+        self.telefoonnummer: str | None = data.get("telefoonnummer")
+        self.emailadres: str | None = data.get("emailadres") or data.get("email")
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} naam={self.naam!r} id={self.id!r}>"
