@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 from typing import Any, Final, NamedTuple
-import base64
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 import datetime
-from enum import Enum
 from itertools import chain
 
 __all__ = (
@@ -13,6 +11,8 @@ __all__ = (
     "BaseExporter",
     "FallbackChain",
     "NormalizedAttr",
+    "SortSpec",
+    "sort_on",
 )
 
 
@@ -36,37 +36,57 @@ class AttrField:
     """
     Fluent builder for attribute specifications for export.
 
+    A flexible builder for defining how to extract and transform data from objects
+    during export operations. Supports simple attributes, nested paths, fallbacks,
+    multi-object access, and custom transformations.
+
     Examples
     --------
-    Simple attribute:
-        >>> AttrField("Name", "naam")
+    Simple attribute extraction:
+        >>> AttrField(label="Name", path="naam")
+        >>> AttrField(label="Email", path="email")
 
-    Auto-label from attribute name:
-        >>> AttrField(None, "vestigingsadres.plaats")  # Label becomes "plaats"
+    Auto-label from attribute name (label inferred from last path segment):
+        >>> AttrField(path="vestigingsadres.plaats")  # Label becomes "plaats"
+        >>> AttrField(path="organisatie.email")  # Label becomes "email"
 
-    Dotted path:
-        >>> AttrField("City", "vestigingsadres.plaats")  # Label is "City"
+    Dotted path for nested attributes:
+        >>> AttrField(label="City", path="vestigingsadres.plaats")
+        >>> AttrField(label="Street", path="address.straat")
 
-    Multiple attributes (creates nested dict):
-        >>> AttrField("Address").add("straat").add("huisnummer").add("plaats")
+    Multiple attributes (combines into nested dict):
+        >>> AttrField(label="Address").add(path="straat").add(path="huisnummer").add(path="plaats")
+        # Result: {"straat": "...", "huisnummer": "...", "plaats": "..."}
 
-    With fallback:
-        >>> AttrField("Website", "website").fallback("organisatie.website")
-        # Tries "organisatie.website" if "website" is empty
+    Fallback paths (tries alternatives if previous is empty):
+        # Tries "website" first, then "organisatie.website" if empty
+        >>> AttrField(label="Website", path="website").fallback("organisatie.website")
+        # Tries "phone" first, then "organisatie.phone", then "contact.phone" if empty
+        >>> AttrField(label="Phone").add(path="phone").fallback("organisatie.phone").fallback("contact.phone")
 
-    From specific object:
-        >>> AttrField("First").from_obj(0, "naam")
+    From specific object (for multi-object scenarios):
+        >>> AttrField(label="First Name").from_obj(0, "naam")
+        >>> AttrField(label="Second Name").from_obj(1, "naam")
 
-    Multiple objects:
-        >>> AttrField("Combined").from_obj(0, "plaats").from_obj(1, "plaats")
+    Combining multiple objects:
+        >>> AttrField(label="Cities").from_obj(0, "plaats").from_obj(1, "plaats")
+        # Result: {"plaats": "Amsterdam", "plaats": "Rotterdam"}
 
-    With transformer:
-        >>> AttrField("Link").transform(lambda obj: f"https://example.com/{obj.id}")
+    Custom transformer function:
+        >>> AttrField(label="Link").transform(lambda obj: f"https://example.com/{obj.id}")
+        >>> AttrField(label="Full Name").transform(lambda obj: f"{obj.first_name} {obj.last_name}")
+        >>> AttrField(label="Date").transform(lambda obj: obj.created_at.strftime("%Y-%m-%d"))
+
+    Complex example combining multiple features:
+        >>> (AttrField(label="Organization")
+        ...  .add(path="naam")
+        ...  .add(path="kvk_nummer")
+        ...  .fallback("registration.kvk"))
     """
 
-    __slots__ = ("_auto_label", "_is_fallback", "_paths", "_transformer", "label")
+    __slots__ = ("_is_fallback", "_paths", "_transformer", "label")
 
-    def __init__(self, label: str | None, path: str | None = None) -> None:
+    def __init__(self, *, label: str | None = None, path: str | None = None) -> None:
         """
         Create a new attribute specification builder.
 
@@ -78,15 +98,14 @@ class AttrField:
         path: str | None
             Optional initial attribute path.
         """
-        self.label = label
-        self._auto_label = label is None
+        self.label: str | None = label
         self._paths: list[tuple[int, str]] = []
         self._transformer: Callable[[Any], Any] | None = None
         self._is_fallback: bool = False
         if path is not None:
-            self._paths.append((0, path))
+            self.add(path=path)
 
-    def add(self, path: str, obj_index: int = 0) -> AttrField:
+    def add(self, *, path: str, obj_index: int = 0) -> AttrField:
         """
         Add an attribute path (defaults to object 0).
 
@@ -121,7 +140,7 @@ class AttrField:
         AttrField
             The current AttrField instance (for chaining).
         """
-        self._paths.append((obj_index, path))
+        self.add(path=path, obj_index=obj_index)
         self._is_fallback = True
         return self
 
@@ -158,7 +177,7 @@ class AttrField:
         AttrField
             The current AttrField instance (for chaining).
         """
-        self._paths.append((obj_index, path))
+        self.add(path=path, obj_index=obj_index)
         return self
 
     def to_spec(self) -> tuple[str, list[tuple[int, str]] | Callable[[Any], Any] | FallbackChain]:
@@ -171,12 +190,10 @@ class AttrField:
             The label and the attribute specification (paths, transformer, or fallback chain).
         """
         label = self.label
-        if self._auto_label and self._paths:
-            # Use last segment of first path as label
+        if not label and self._paths:
             _, first_path = self._paths[0]
             label = first_path.split(".")[-1]
 
-        # If transformer is set, use it instead of paths
         if self._transformer is not None:
             return (label or "value", self._transformer)
 
@@ -188,25 +205,12 @@ class AttrField:
 
 AttrSpec = str | tuple[str, str | Sequence[str] | Sequence[tuple[int, str]]] | AttrField
 NormalizedAttr = tuple[str, list[tuple[int, str]] | Callable[[Any], Any] | FallbackChain]
+SortSpec = tuple[int, str] | tuple[str] | str
 
 
-def _get_all_slots(cls: type) -> frozenset[str]:
-    """
-    Collect all `__slots__` entries from a class hierarchy.
-
-    Parameters
-    ----------
-    cls: type
-        Class to collect slots for.
-
-    Returns
-    -------
-    frozenset[str]
-        A set of all slot names found in `cls.__mro__`.
-    """
-
-    slot_iterables = (getattr(klass, "__slots__", ()) for klass in cls.__mro__)
-    return frozenset(chain.from_iterable(slot_iterables))
+def sort_on(path: str, obj_index: int = 0) -> SortSpec:
+    """Build a sort spec with an object index and attribute path."""
+    return (obj_index, path)
 
 
 class BaseExporter:
@@ -242,7 +246,7 @@ class BaseExporter:
         self._include_empty = include_empty
         self._slots_cache: dict[type, frozenset[str]] = {}
 
-    def _get_slots_cached(self, cls: type) -> frozenset[str]:
+    def _get_slots(self, cls: type) -> frozenset[str]:
         """
         Get all __slots__ entries for a class, using a cache for efficiency.
 
@@ -256,9 +260,11 @@ class BaseExporter:
         frozenset[str]
             The set of slot names for the class.
         """
-        if cls not in self._slots_cache:
-            self._slots_cache[cls] = _get_all_slots(cls)
-        return self._slots_cache[cls]
+        slots = self._slots_cache.get(cls)
+        if not slots:
+            slot_iterables = (getattr(klass, "__slots__", ()) for klass in cls.__mro__)
+            slots = self._slots_cache[cls] = frozenset(chain.from_iterable(slot_iterables))
+        return slots
 
     def _should_include(self, value: Any) -> bool:
         """
@@ -400,70 +406,132 @@ class BaseExporter:
             normalized.append((label, path_list))
         return normalized
 
-    def _convert_enum(self, obj: Enum) -> Any:
+    def _iter_attr_values(
+        self,
+        obj: Any,
+        attrs: Sequence[AttrSpec],
+        objects: Sequence[Any] | None = None,
+        *,
+        convert: Callable[[Any], Any] | None = None,
+    ) -> Iterable[tuple[str, Any]]:
         """
-        Convert an Enum to its value.
+        Iterate over normalized attributes and yield (label, value).
 
         Parameters
         ----------
-        obj: Enum
-            The Enum instance to convert.
+        obj: Any
+            Primary object to read values from.
+        attrs: Sequence[AttrSpec]
+            Attribute specifications.
+        objects: Sequence[Any] | None
+            Additional objects for multi-object attribute access.
+        convert: Callable[[Any], Any] | None
+            Conversion function applied to extracted values.
 
-        Returns
-        -------
-        Any
-            The value of the Enum.
+        Yields
+        ------
+        Iterable[tuple[str, Any]]
+            (label, converted value) pairs.
         """
-        return obj.value
+        normalized = self._normalize_attrs(attrs)
+        yield from self._iter_normalized_values(obj, normalized, objects, convert=convert)
 
-    def _convert_datetime(self, obj: datetime.datetime | datetime.date | datetime.time) -> str:
+    def _iter_normalized_values(
+        self,
+        obj: Any,
+        normalized_attrs: Sequence[NormalizedAttr],
+        objects: Sequence[Any] | None = None,
+        *,
+        convert: Callable[[Any], Any] | None = None,
+    ) -> Iterable[tuple[str, Any]]:
         """
-        Convert a datetime, date, or time object to an ISO 8601 string.
+        Iterate over pre-normalized attributes and yield (label, value).
 
         Parameters
         ----------
-        obj: datetime.datetime | datetime.date | datetime.time
-            The object to convert.
+        obj: Any
+            Primary object to read values from.
+        normalized_attrs: Sequence[NormalizedAttr]
+            Normalized attribute specifications.
+        objects: Sequence[Any] | None
+            Additional objects for multi-object attribute access.
+        convert: Callable[[Any], Any] | None
+            Conversion function applied to extracted values.
 
-        Returns
-        -------
-        str
-            The ISO 8601 string representation.
+        Yields
+        ------
+        Iterable[tuple[str, Any]]
+            (label, converted value) pairs.
         """
-        return obj.isoformat()
+        all_objects = [obj] if objects is None else list(objects)
 
-    def _convert_timedelta(self, obj: datetime.timedelta) -> float:
+        convert = convert or (lambda v: v)
+
+        for label, indexed_paths in normalized_attrs:
+            if callable(indexed_paths):
+                try:
+                    value = convert(indexed_paths(obj))
+                except Exception:  # noqa: BLE001
+                    value = None
+                yield label, value
+                continue
+
+            if isinstance(indexed_paths, FallbackChain):
+                value = None
+                for obj_idx, path in indexed_paths.paths:
+                    target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
+                    value = convert(self._resolve_attribute(target_obj, path))
+                    if not self._is_empty(value):
+                        break
+                yield label, value
+                continue
+
+            if len(indexed_paths) == 1:
+                obj_idx, path = indexed_paths[0]
+                target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
+                yield label, convert(self._resolve_attribute(target_obj, path))
+                continue
+
+            combined: dict[str, Any] = {}
+            for obj_idx, path in indexed_paths:
+                target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
+                key = self._get_attr_key(path)
+                combined[key] = convert(self._resolve_attribute(target_obj, path))
+            yield label, combined
+
+    def _sort_objects(self, objects: Sequence[Any], sort: SortSpec | None) -> list[Any]:
         """
-        Convert a timedelta to the number of seconds (float).
+        Sort objects by an attribute path on a specific object index.
 
         Parameters
         ----------
-        obj: datetime.timedelta
-            The timedelta object to convert.
+        objects: Sequence[Any]
+            Objects to sort.
+        sort: SortSpec | None
+            Can be one of the following:
+
+            - (obj_index, path)
+            - (path,)
+            - path
 
         Returns
         -------
-        float
-            The total number of seconds.
+        list[Any]
+            Sorted list of objects.
         """
-        return obj.total_seconds()
+        if sort is None:
+            return list(objects)
 
-    def _convert_bytes(self, obj: bytes | bytearray) -> str:
-        """
-        Convert bytes or bytearray to a string.
-        Tries UTF-8 first, otherwise base64-encodes.
+        obj_index, path = sort if isinstance(sort, tuple) and len(sort) == 2 else (0, sort)
 
-        Parameters
-        ----------
-        obj: bytes | bytearray
-            The bytes or bytearray to convert.
+        def key_fn(item: Any) -> Any:
+            target = item
+            if isinstance(item, (list, tuple)) and obj_index < len(item):
+                target = item[obj_index]
+            value = self._resolve_attribute(target, path[0] if isinstance(path, (list, tuple)) else path)
+            return (value is None, value)
 
-        Returns
-        -------
-        str
-            The decoded string (UTF-8 or base64).
-        """
         try:
-            return obj.decode("utf-8")
-        except UnicodeDecodeError:
-            return base64.b64encode(obj).decode("ascii")
+            return sorted(objects, key=key_fn)
+        except TypeError:
+            return sorted(objects, key=lambda item: str(key_fn(item)))

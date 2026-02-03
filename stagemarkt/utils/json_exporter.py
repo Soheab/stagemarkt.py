@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
+import base64
 from collections.abc import Iterable, Mapping, Sequence
 import dataclasses
 import datetime
@@ -9,7 +10,7 @@ from itertools import filterfalse
 import json
 from pathlib import Path
 
-from .base_exporter import AttrSpec, BaseExporter, FallbackChain
+from .base_exporter import AttrSpec, BaseExporter, SortSpec
 
 if TYPE_CHECKING:
     from _typeshed import SupportsWrite
@@ -61,6 +62,7 @@ class JSONExporter(BaseExporter):
         *,
         root_key: str | None = None,
         attrs: list[AttrSpec] | None = None,
+        sort: SortSpec | None = None,
     ) -> None:
         """
         Export objects to a JSON file.
@@ -83,7 +85,7 @@ class JSONExporter(BaseExporter):
         None
             Writes the JSON to `path`.
         """
-        data = self._build_output(objects, root_key, attrs)
+        data = self._build_output(objects, root_key, attrs, sort)
         with path.open("w", encoding="utf-8") as f:
             self._dump(data, f)
 
@@ -94,6 +96,7 @@ class JSONExporter(BaseExporter):
         *,
         root_key: str | None = None,
         attrs: list[AttrSpec] | None = None,
+        sort: SortSpec | None = None,
     ) -> None:
         """
         Serialize objects to a file-like object.
@@ -114,7 +117,7 @@ class JSONExporter(BaseExporter):
         None
             Writes JSON content to `fp`.
         """
-        data = self._build_output(objects, root_key, attrs)
+        data = self._build_output(objects, root_key, attrs, sort)
         self._dump(data, fp)
 
     def dumps(
@@ -123,6 +126,7 @@ class JSONExporter(BaseExporter):
         *,
         root_key: str | None = None,
         attrs: list[AttrSpec] | None = None,
+        sort: SortSpec | None = None,
     ) -> str:
         """
         Serialize objects to a JSON string.
@@ -141,7 +145,7 @@ class JSONExporter(BaseExporter):
         str
             The JSON string.
         """
-        data = self._build_output(objects, root_key, attrs)
+        data = self._build_output(objects, root_key, attrs, sort)
         return json.dumps(
             data,
             ensure_ascii=self._ensure_ascii,
@@ -173,6 +177,7 @@ class JSONExporter(BaseExporter):
         objects: Sequence[object],
         root_key: str | None,
         attrs: list[AttrSpec] | None,
+        sort: SortSpec | None = None,
     ) -> JSONValue:
         """
         Build the final JSON structure.
@@ -191,7 +196,7 @@ class JSONExporter(BaseExporter):
         JSONValue
             Either a list of items or a dict with `root_key`.
         """
-        items = [self._convert(obj, attrs) for obj in objects]
+        items = [self._convert(obj, attrs) for obj in self._sort_objects(objects, sort)]
         return {root_key: items} if root_key else items
 
     def _dump(self, data: JSONValue, fp: SupportsWrite[str]) -> None:
@@ -240,19 +245,19 @@ class JSONExporter(BaseExporter):
 
         # Enums
         if isinstance(obj, Enum):
-            return self._convert_enum(obj)
+            return obj.value
 
         # Datetime types
         if isinstance(obj, self._DATETIME_TYPES):
-            return self._convert_datetime(obj)
+            return obj.isoformat()
 
         # Timedelta
         if isinstance(obj, datetime.timedelta):
-            return self._convert_timedelta(obj)
+            return obj.total_seconds()
 
         # Bytes
         if isinstance(obj, self._BYTES_TYPES):
-            return self._convert_bytes(obj)
+            return self._bytes_to_text(obj)
 
         if isinstance(obj, Mapping):
             return self._convert_mapping(obj)
@@ -270,7 +275,7 @@ class JSONExporter(BaseExporter):
             return self._convert_dataclass(obj)
 
         # Slotted objects
-        slots = self._get_slots_cached(type(obj))
+        slots = self._get_slots(type(obj))
         if slots:
             return self._convert_slotted(obj, slots)
 
@@ -337,51 +342,33 @@ class JSONExporter(BaseExporter):
         dict[str, Any]
             Dictionary of extracted attributes.
         """
-        result: dict[str, Any] = {}
-        all_objects = [obj] if objects is None else list(objects)
-
-        for label, indexed_paths in self._normalize_attrs(attrs):
-            # Handle callable transformer
-            if callable(indexed_paths):
-                try:
-                    value = self._convert(indexed_paths(obj))
-                except Exception:
-                    value = None
-                if self._should_include(value):
-                    result[label] = value
-                continue
-
-            # Handle fallback chain
-            if isinstance(indexed_paths, FallbackChain):
-                value = None
-                for obj_idx, path in indexed_paths.paths:
-                    target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
-                    try:
-                        value = self._convert(self._resolve_attribute(target_obj, path))
-                        if not self._is_empty(value):
-                            break
-                    except (AttributeError, KeyError):  # noqa: S112
-                        continue
-                if self._should_include(value):
-                    result[label] = value
-                continue
-
-            if len(indexed_paths) == 1:
-                obj_idx, path = indexed_paths[0]
-                target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
-                value = self._convert(self._resolve_attribute(target_obj, path))
-            else:
-                # Multiple paths - create dict with last segment as key
-                value = {}
-                for obj_idx, path in indexed_paths:
-                    target_obj = all_objects[obj_idx] if obj_idx < len(all_objects) else obj
-                    key = self._get_attr_key(path)
-                    value[key] = self._convert(self._resolve_attribute(target_obj, path))
-
-            if self._should_include(value):
-                result[label] = value
+        result: dict[str, Any] = {
+            label: value
+            for label, value in self._iter_attr_values(obj, attrs, objects, convert=self._convert)
+            if self._should_include(value)
+        }
 
         return result
+
+    def _bytes_to_text(self, obj: bytes | bytearray) -> str:
+        """
+        Convert bytes or bytearray to a string.
+        Tries UTF-8 first, otherwise base64-encodes.
+
+        Parameters
+        ----------
+        obj: bytes | bytearray
+            The bytes or bytearray to convert.
+
+        Returns
+        -------
+        str
+            The decoded string (UTF-8 or base64).
+        """
+        try:
+            return obj.decode("utf-8")
+        except UnicodeDecodeError:
+            return base64.b64encode(obj).decode("ascii")
 
     def _convert_dataclass(self, obj: Any) -> dict[str, Any]:
         """
@@ -465,6 +452,7 @@ def to_json(
     indent: int = 4,
     include_empty: bool = True,
     ensure_ascii: bool = False,
+    sort: SortSpec | None = None,
 ) -> None:
     """
     Export objects to a JSON file using JSONExporter.
@@ -506,6 +494,6 @@ def to_json(
                 root_key = last
             else:
                 root_key = "value"
-        exporter.export(path, objects, root_key=root_key, attrs=attrs)
+        exporter.export(path, objects, root_key=root_key, attrs=attrs, sort=sort)
     else:
-        exporter.export(path, objects)
+        exporter.export(path, objects, sort=sort)

@@ -2,6 +2,7 @@
 
 import asyncio
 from pathlib import Path
+from sys import path
 
 from stagemarkt import (
     EducatieFilters,
@@ -51,12 +52,12 @@ async def main() -> None:
 
         # Exporteer naar Excel (gebruik AttrField voor correcte types)
         attributes = [
-            AttrField("Bedrijfsnaam").add("organisatie.naam"),
-            AttrField("Titel").add("title"),
-            AttrField("Leerweg").add("leerweg"),
-            AttrField("Plaats").add("adres.plaats"),
-            AttrField("Email").add("organisatie.email"),
-            AttrField("Website").add("organisatie.website"),
+            AttrField(label="Bedrijfsnaam", path="organisatie.naam"),
+            AttrField(label="Titel", path="title"),
+            AttrField(label="Leerweg", path="leerweg"),
+            AttrField(label="Plaats", path="adres.plaats"),
+            AttrField(label="Email", path="organisatie.email"),
+            AttrField(label="Website", path="organisatie.website"),
         ]
 
         output_file = Path("stages_filtered_export.xlsx")

@@ -489,9 +489,7 @@ class HTTPClient:
             items_key="items",
         )
         results: list[EducatieSearchResultItemPayload] = await paginator.collect()
-
         if met_details:
-            # Fetch detailed info for each education
             detail_tasks = [self.haal_educatie_detail(leerplaats_id=item["leerplaatsId"]) for item in results]
             return await asyncio.gather(*detail_tasks)
 

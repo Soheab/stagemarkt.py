@@ -11,7 +11,7 @@ from pathlib import Path
 import xlsxwriter
 import xlsxwriter.worksheet
 
-from .base_exporter import AttrSpec, BaseExporter, FallbackChain, NormalizedAttr
+from .base_exporter import AttrSpec, BaseExporter, NormalizedAttr, SortSpec
 
 __all__ = ("ExcelExporter", "to_excel")
 
@@ -61,6 +61,7 @@ class ExcelExporter(BaseExporter):
         *,
         sheet_name: str = "Sheet1",
         names: tuple[str | None, list[AttrSpec]] | None = None,
+        sort: SortSpec | None = None,
     ) -> None:
         """
         Export objects to an Excel file.
@@ -125,7 +126,7 @@ class ExcelExporter(BaseExporter):
 
         worksheet.freeze_panes(current_row, 0)
 
-        for row_idx, obj in enumerate(objects, start=current_row):
+        for row_idx, obj in enumerate(self._sort_objects(objects, sort), start=current_row):
             row_data = self._extract_row_data(obj, normalized_attrs)
             self._write_row(worksheet, row_idx, row_data, date_format)
 
@@ -151,7 +152,7 @@ class ExcelExporter(BaseExporter):
         if dataclasses.is_dataclass(obj) and not isinstance(obj, type):
             return [f.name for f in dataclasses.fields(obj) if not f.name.startswith("_")]
 
-        slots = self._get_slots_cached(type(obj))
+        slots = self._get_slots(type(obj))
         if slots:
             return sorted([s for s in slots if not s.startswith("_")])
 
@@ -183,52 +184,13 @@ class ExcelExporter(BaseExporter):
         list[Any]
             Row values ready for writing.
         """
-        objects_list = [obj] if all_objects is None else list(all_objects)
         row: list[Any] = []
-
-        for _, indexed_paths in normalized_attrs:
-            # Handle callable transformer
-            if callable(indexed_paths):
-                try:
-                    val = indexed_paths(obj)
-                except Exception:  # noqa: BLE001
-                    val = None
-                row.append(self._convert_cell_value(val))
-                continue
-
-            # Handle fallback chain
-            if isinstance(indexed_paths, FallbackChain):
-                val = None
-                for obj_idx, path in indexed_paths.paths:
-                    target_obj = objects_list[obj_idx] if obj_idx < len(objects_list) else obj
-                    try:
-                        val = self._resolve_attribute(target_obj, path)
-                        if not self._is_empty(val):
-                            break
-                    except (AttributeError, KeyError):  # noqa: S112
-                        continue
-                row.append(self._convert_cell_value(val))
-                continue
-
-            if len(indexed_paths) == 1:
-                obj_idx, path = indexed_paths[0]
-                target_obj = objects_list[obj_idx] if obj_idx < len(objects_list) else obj
-                try:
-                    val = self._resolve_attribute(target_obj, path)
-                except (AttributeError, KeyError):
-                    val = None
-                row.append(self._convert_cell_value(val))
-            else:
-                # Multiple paths - create dict with last segment as key
-                combined: dict[str, Any] = {}
-                for obj_idx, path in indexed_paths:
-                    target_obj = objects_list[obj_idx] if obj_idx < len(objects_list) else obj
-                    try:
-                        key = self._get_attr_key(path)
-                        combined[key] = self._resolve_attribute(target_obj, path)
-                    except (AttributeError, KeyError):
-                        combined[self._get_attr_key(path)] = None
-                row.append(self._convert_cell_value(combined))
+        for _, value in self._iter_normalized_values(
+            obj,
+            normalized_attrs,
+            all_objects,
+        ):
+            row.append(self._convert_cell_value(value))
         return row
 
     def _convert_cell_value(self, val: Any) -> Any:
@@ -249,14 +211,17 @@ class ExcelExporter(BaseExporter):
             return None
 
         # Primitives supported by Excel
-        if isinstance(val, (str, int, float, bool, type(None))):
+        if isinstance(val, self._PRIMITIVES):
             return val
 
-        if isinstance(val, (datetime.datetime, datetime.date)):
+        if isinstance(val, self._DATETIME_TYPES) and not isinstance(val, datetime.time):
             return val  # xlsxwriter handles datetime objects
 
         if isinstance(val, Enum):
             return val.value
+
+        if isinstance(val, self._BYTES_TYPES):
+            return str(val)
 
         if isinstance(val, (dict, list)):
             return json.dumps(val, ensure_ascii=False)
@@ -301,6 +266,7 @@ def to_excel(
     sheet_name: str = "Sheet1",
     include_empty: bool = True,
     constant_memory: bool = True,
+    sort: SortSpec | None = None,
 ) -> None:
     """
     Export objects to an Excel file.
@@ -333,4 +299,5 @@ def to_excel(
         objects,
         sheet_name=sheet_name,
         names=names,
+        sort=sort,
     )

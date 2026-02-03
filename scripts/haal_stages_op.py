@@ -10,7 +10,7 @@ from stagemarkt import (
     StagemarktClient,
     Straal,
 )
-from stagemarkt.utils import AttrField, maak_stagemarkt_link, to_excel
+from stagemarkt.utils import AttrField, maak_stagemarkt_link, maak_zoeklink, to_excel, to_json
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--export", choices=["excel", "json"], default="excel", help="Export formaat: excel of json")
@@ -26,7 +26,7 @@ async def main() -> None:
         niveau = Niveau.MBO_4
         plaats_postcode = "Amsterdam"
         crebocode = 25998
-        straal = Straal.KM_25
+        straal = Straal.KM_50
 
         zelf_zoeklink = maak_zoeklink(
             niveau=niveau.value,
@@ -39,7 +39,7 @@ async def main() -> None:
         print("Debug: Verzenden van verzoek naar API...")
 
         educaties = await client.zoek_stages(
-            niveau=niveau, plaats=plaats_postcode, crebocode=crebocode, straal=straal, met_details=True
+            niveau=niveau, plaats=plaats_postcode, crebocode=crebocode, straal=straal, met_details=True, limiet=None
         )
 
         print("Debug: API-antwoord ontvangen")
@@ -51,13 +51,16 @@ async def main() -> None:
             ("Huisnummer", "adres.huisnummer"),
             ("Postcode", "adres.postcode"),
             ("Plaats", "adres.plaats"),
-            ("Telefoonnummer", "telefoon"),
-            AttrField("Email", "emailadres").fallback("organisatie.email"),
-            AttrField("Website", "website").fallback("organisatie.website"),
+            AttrField(label="Telefoonnummer", path="telefoon").fallback("organisatie.telefoonnummer"),
+            AttrField(label="Email", path="emailadres").fallback("organisatie.emailadres").fallback("organisatie.email"),
+            AttrField(label="Website", path="website").fallback("organisatie.website"),
             ("Contactpersoon Naam", "contactpersoon"),
             ("Contactpersoon Tel", "telefoon"),
-            AttrField("Contactpersoon Email", "emailadres").fallback("organisatie.email"),
-            AttrField("Stagemarkt Link").transform(
+            AttrField(label="Contactpersoon Email", path="emailadres")
+            .fallback("organisatie.emailadres")
+            .fallback("organisatie.email"),
+            AttrField(label="Beschrijving", path="omschrijving"),
+            AttrField(label="Stagemarkt Link").transform(
                 lambda educatie: maak_stagemarkt_link(
                     educatie_id=educatie.leerplaats_id,
                     titel=educatie.title,
@@ -78,6 +81,7 @@ async def main() -> None:
             names=("stages" if export_formaat == "json" else None, attributes),
             include_empty=True,
             **{"sheet_name": f"Stages-{crebocode}" if export_formaat == "xlsx" else {}},  # noqa: PIE804 # pyright: ignore[reportArgumentType]
+            sort="organisatie.naam",
         )
 
         print(f"✓ Geëxporteerd naar {output_file.absolute()}")
