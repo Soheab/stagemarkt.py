@@ -1,5 +1,7 @@
 """Haal alle stages op en exporteer naar Excel met specifieke kolommen."""
 
+from typing import Literal
+import argparse
 import asyncio
 from pathlib import Path
 
@@ -9,6 +11,12 @@ from stagemarkt import (
     Straal,
 )
 from stagemarkt.utils import AttrField, maak_stagemarkt_link, to_excel
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--export", choices=["excel", "json"], default="excel", help="Export formaat: excel of json")
+
+args = parser.parse_args()
+export_formaat: Literal["xlsx", "json"] = "xlsx" if args.export == "excel" else "json"
 
 
 async def main() -> None:
@@ -55,12 +63,14 @@ async def main() -> None:
             ),
         ]
 
-        output_file = Path("stages_export.xlsx")
-        to_excel(
+        output_file = Path(f"stages_export.{export_formaat}")
+        exporter_meth = to_excel if export_formaat == "xlsx" else to_json
+        exporter_meth(
             path=output_file,
             objects=educaties,
-            names=(None, attributes),
+            names=("stages" if export_formaat == "json" else None, attributes),
             include_empty=True,
+            **{"sheet_name": f"Stages-{crebocode}" if export_formaat == "xlsx" else {}},  # noqa: PIE804 # pyright: ignore[reportArgumentType]
         )
 
         print(f"✓ Geëxporteerd naar {output_file.absolute()}")
