@@ -1,12 +1,8 @@
-# Stagemarkt.nl (onofficiële) Python wrapper
+# Stagemarkt.py (onofficiële) Python wrapper
 
-Dit is een **onofficiële** Python wrapper voor Stagemarkt.nl.
+Dit is een **onofficiële** Python wrapper voor https://stagemarkt.nl.
 
 Voor zover bekend is er **geen publieke, officiële API-documentatie**. De gebruikte endpoints zijn reverse-engineered via de Network-tab in browser Developer Tools.
-
-## Website
-
-https://stagemarkt.nl
 
 ## Disclaimer
 
@@ -18,6 +14,16 @@ https://stagemarkt.nl
 ## Documentatie
 
 Alle onderdelen in deze repository zijn voorzien van docstrings.
+
+## Installatie
+
+Benodigdheden:
+- Python 3.12+
+- [Git](https://git-scm.com/) (voor installatie via GitHub)
+
+```bash
+python -m pip install "stagemarkt.py @ git+https://github.com/Soheab/stagemarkt.py"
+```
 
 ## Voorbeelden (scripts)
 

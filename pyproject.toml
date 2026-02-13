@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "stagemarkt-api"
+name = "stagemarkt.py"
 version = "0.1.0"
 description = "An unofficial API wrapper for Stagemarkt.nl"
 readme = "README.md"
@@ -105,6 +105,7 @@ ignore = [
     "ASYNC240",
     "T201",
     "ERA001",   # Allow commented out code
+    "B903",
 ]
 unfixable = [
     "E501", # line length handled in other ways by ruff format
