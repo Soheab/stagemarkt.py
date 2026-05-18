@@ -329,8 +329,8 @@ class HTTPClient:
     async def zoek_organisaties(
         self,
         *,
-        plaats_postcode: str,
         crebocode: int,
+        plaats_postcode: str | None = None,
         straal: Straal = Straal.KM_15,
         leerweg: Leerweg | None = None,
         filters: EducatieFilters | None = None,
@@ -341,8 +341,9 @@ class HTTPClient:
 
         Parameters
         ----------
-        plaats_postcode: str
-            Plaats of postcode voor het zoeken van organisaties.
+        plaats_postcode: str | None
+            Plaats of postcode voor het zoeken van organisaties. Standaard op ``None`` voor
+            landelijke zoekopdracht.
         crebocode: int
             CREBO-code van de opleiding waarvoor organisaties gezocht worden.
         straal: Straal
@@ -407,8 +408,8 @@ class HTTPClient:
         self,
         *,
         niveau: Niveau,
-        plaats_postcode: str,
         crebocode: int,
+        plaats_postcode: str | None = None,
         straal: Straal | int = Straal.KM_15,
         buitenlandse_bedrijven: bool | None = None,
         educatie_type: EducatieZoekType | None = None,
@@ -422,7 +423,7 @@ class HTTPClient:
         ----------
         niveau: Niveau
             Opleidingsniveau (1, 2, 3, of 4) waarvoor educaties gezocht worden.
-        plaats_postcode: str
+        plaats_postcode: str | None
             Plaats of postcode voor het zoeken van educaties.
         crebocode: int
             CREBO-code van de opleiding waarvoor leerplaatsen gezocht worden.

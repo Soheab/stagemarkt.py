@@ -55,8 +55,8 @@ class StagemarktClient:
         self,
         *,
         niveau: Niveau,
-        plaats: str,
         crebocode: int,
+        plaats: str | None = ...,
         straal: Straal = ...,
         limiet: int | None = ...,
         buitenlandse_bedrijven: bool = ...,
@@ -69,7 +69,7 @@ class StagemarktClient:
         self,
         *,
         niveau: Niveau,
-        plaats: str,
+        plaats: str | None = ...,
         crebocode: int,
         straal: Straal = ...,
         limiet: int | None = ...,
@@ -82,8 +82,8 @@ class StagemarktClient:
         self,
         *,
         niveau: Niveau,
-        plaats: str,
         crebocode: int,
+        plaats: str | None = None,
         straal: Straal | int = Straal.KM_25,
         limiet: int | None = 20,
         educatie_type: EducatieZoekType | None = None,
@@ -97,8 +97,9 @@ class StagemarktClient:
         ----------
         niveau: Niveau
             Het onderwijsniveau waarvoor gezocht moet worden (MBO 1, 2, 3 of 4).
-        plaats: str
-            De plaats/stad waar gezocht moet worden (bijv. "Amsterdam").
+        plaats: str | None
+            De plaats/stad waar gezocht moet worden (bijv. "Amsterdam"). Standaard op ``None`` voor
+            landelijke zoekopdracht.
         crebocode: int
             De CREBO code van de opleiding.
         straal: Straal | int
@@ -151,8 +152,8 @@ class StagemarktClient:
     async def zoek_organisaties(
         self,
         *,
-        plaats: str,
         crebocode: int,
+        plaats: str | None = ...,
         straal: Straal = ...,
         leerweg: Leerweg | None = ...,
         filters: EducatieFilters | None = ...,
@@ -164,8 +165,8 @@ class StagemarktClient:
     async def zoek_organisaties(
         self,
         *,
-        plaats: str,
         crebocode: int,
+        plaats: str | None = ...,
         straal: Straal = ...,
         leerweg: Leerweg | None = ...,
         filters: EducatieFilters | None = ...,
@@ -176,8 +177,8 @@ class StagemarktClient:
     async def zoek_organisaties(
         self,
         *,
-        plaats: str,
         crebocode: int,
+        plaats: str | None = None,
         straal: Straal = Straal.KM_25,
         leerweg: Leerweg | None = None,
         filters: EducatieFilters | None = None,
@@ -188,8 +189,9 @@ class StagemarktClient:
 
         Parameters
         ----------
-        plaats: str
-            De plaats/stad waar gezocht moet worden.
+        plaats: str | None
+            De plaats/stad waar gezocht moet worden (bijv. "Amsterdam"). Standaard op ``None`` voor
+            landelijke zoekopdracht.
         crebocode: int
             De CREBO code van de opleiding.
         straal: Straal
