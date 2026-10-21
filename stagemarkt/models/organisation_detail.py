@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 import datetime
 
 from ..enums import Niveau
+from .educatie import Educatie
 from .kerntaak import Kerntaak
 from .organisatie import Organisatie
 
@@ -229,6 +230,10 @@ class OrganisationDetail(Organisatie):
         Lijst met contactpersonen van de organisatie.
     erkenning: OrganisationDetailErkenning | None
         Erkenninginformatie van de organisatie, indien aanwezig.
+    leerplaatsen: list[Educatie]
+        Stages die de organisatie op dit moment aanbiedt.
+    soort_bedrijf: str | None
+        Soort bedrijf (branche) volgens de SBI-indeling, indien aanwezig.
     """
 
     __slots__ = (
@@ -237,6 +242,7 @@ class OrganisationDetail(Organisatie):
         "_personen",
         "informatie_leren_werken",
         "informatie_student",
+        "soort_bedrijf",
         "telefoonnummer",
     )
 
@@ -246,6 +252,7 @@ class OrganisationDetail(Organisatie):
         self.telefoonnummer: str | None = data.get("telefoonnummer")
         self.informatie_leren_werken: str | None = data.get("informatieLerenWerken")
         self.informatie_student: str | None = data.get("informatieStudent")
+        self.soort_bedrijf: str | None = data.get("soortBedrijf")
 
         self._personen = data.get("personen", [])
         self._leerplaatsen = data.get("leerplaatsen", [])
@@ -258,6 +265,17 @@ class OrganisationDetail(Organisatie):
     def personen(self) -> list[OrganisationDetailPerson]:
         """list[:class:`OrganisationDetailPerson`]: lijst met contactpersonen van de organisatie."""
         return [OrganisationDetailPerson(p) for p in self._personen]
+
+    @property
+    def leerplaatsen(self) -> list[Educatie]:
+        """list[:class:`Educatie`]: stages die de organisatie op dit moment aanbiedt.
+
+        Het ``id`` van elke leerplaats is wat :meth:`StagemarktClient.haal_stage_detail` verwacht.
+        """
+        return [
+            Educatie({**leerplaats, "leerplaatsId": leerplaats.get("id") or leerplaats.get("leerplaatsId", "")})  # pyright: ignore[reportArgumentType]
+            for leerplaats in self._leerplaatsen
+        ]
 
     @property
     def erkenning(self) -> OrganisationDetailErkenning | None:

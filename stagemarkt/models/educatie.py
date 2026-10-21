@@ -99,7 +99,8 @@ class Educatie:
         self.afstand: float | None = data.get("afstand")
         self.bedrag_van: int = data.get("bedragVan")
         self.bedrag_tot: int = data.get("bedragTot")
-        self.leerweg: Leerweg = Leerweg[data.get("leerweg", "BOL")]
+        # Organisatiedetails geven ``"leerweg": null`` terug; behandel dat als ontbrekend.
+        self.leerweg: Leerweg = Leerweg[data.get("leerweg") or "BOL"]
         self.kenmerken: list[str] = data.get("kenmerken", [])
 
         try:
