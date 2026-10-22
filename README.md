@@ -36,13 +36,38 @@ De map `scripts/` bevat kant-en-klare voorbeelden:
 
 ## Client API (kort)
 
-- `zoek_stages(...)`: zoek stages per niveau, plaats, crebocode en straal.
-- `zoek_organisaties(...)`: zoek organisaties met vergelijkbare criteria.
-- `zoek_locaties(term)`: suggesties voor plaatsen/locaties.
+- `zoek_stages(...)`: zoek stages per niveau, plaats/postcode of regio, crebocode, straal en sortering.
+- `zoek_organisaties(...)`: zoek (erkende) leerbedrijven, o.a. op naam, sortering, buitenland en
+  `alleen_zonder_leerplaatsen` ("Erkende bedrijven met mogelijk een plek").
+- `zoek_locaties(term, lat=, lon=)`: suggesties voor plaatsen, postcodes en regio's.
+- `zoek_organisatienamen(term)`: autocomplete voor organisatienamen.
+- `haal_regios()`: alle regio's (voor `zoek_stages(regio=...)`).
+- `haal_filter_opties(...)`: alle filteropties met aantallen voor een zoekopdracht, zoals het filtermenu
+  op de website (bedrijfssoort, bedrijfsgrootte, sector, land, leerweg, kenmerken, vergoedingen, ...).
 - `haal_stage_detail(leerplaats_id)`: detail voor een specifieke stage.
 - `haal_organisatie_detail(organisatie_id)`: detail voor een organisatie.
 - `zoek_opleidingen(niveau, term, limiet)`: suggesties voor opleidingen.
 - `zoek_studie_locaties(crebocode, lat, lon)`: studielocaties in de buurt.
+- `haal_filter_definities()`, `haal_pagina(route)`, `haal_vertalingen()`: filterinstellingen, CMS-inhoud en teksten
+  van de website.
+- `haal_formulier(id)`: velden van een formulier.
+- `haal_stage_preview(token)`: voorbeeldweergave van een stage via een preview-token.
+- `haal_mail_alert(mail_guid)`, `maak_mail_alert(...)`, `wijzig_mail_alert(...)`: mail alerts (opgeslagen
+  zoekopdrachten); gebruik `MailAlertItem.van_locatie(...)` om een zoekopdracht te maken.
+
+### Formulieren versturen
+
+Deze methodes versturen **echt** een e-mail naar een leerbedrijf of SBB, precies zoals de formulieren op de website.
+Ze vereisen `toestemming=True` (akkoord met de privacyverklaring van SBB).
+
+- `solliciteer(leerplaats_id, ...)`: solliciteer op een stage, optioneel met CV/motivatiebrief (.pdf, .docx, .doc,
+  .txt; max. 5 MB per bestand).
+- `stel_vraag_over_stage(leerplaats_id, ...)` en `stel_vraag_aan_leerbedrijf(organisatie_id, ...)`: stel een vraag.
+- `meld_probleem(leerplaats_id, ...)`: meld dat er iets niet klopt aan een stage (`ProbleemSoort`).
+
+Filters gaan via `EducatieFilters` (bedrijfssoorten, sectoren, leerwegen, trefwoorden, bedrijfsgroottes,
+kenmerken, vergoedingen, landen, `start_binnen_maanden`, `alle_werkprocessen_uitvoerbaar`). Niet elk filter
+werkt op beide zoekopdrachten; zie de docstring. `EducatieFilters.from_url` leest ook een URL van stagemarkt.nl.
 
 ## Exporters
 
