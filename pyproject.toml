@@ -12,6 +12,11 @@ dependencies = ["aiohttp>=3.13.2", "brotli>=1.2.0", "xlsxwriter>=3.2.9"]
 
 [project.optional-dependencies]
 dev = ["ruff>=0.14.9"]
+cli = ["prompt_toolkit>=3.0.52"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "strict"
 
 [tool.ruff]
 fix = true # default: false
