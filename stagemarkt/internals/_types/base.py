@@ -1,6 +1,6 @@
 from typing import Literal, TypedDict
 
-LocatieSuggestieBodyDataItemType = Literal["Plaats", "Regio", "Postcode"]
+LocatieSuggestieBodyDataItemType = Literal["Plaats", "Regio", "Postcode", "Land"]
 EducatieSearchResultItemLeerweg = Literal[
     "BOL",
     "BBL",
@@ -16,10 +16,13 @@ EducatieSearchResultItemLeerwegLabelID = Literal[
 EducatieSearchResultFilterID = Literal[
     "kenmerken",
     "sectoren",
-    "sbi",  # soort bedrijven
-    "leerwegen",
+    "soortBedrijf",
+    "leerweg",
     "bedrijfsgrootte",
-    "landen",
+    "land",
+    "vergoedingen",
+    "startInMonths",
+    "alleWerkprocessenUitvoerbaar",
 ]
 KnownVergoedingID = Literal[
     "a0c0cc96-7bd3-eb11-8235-00224882c087",  # Reiskostenvergoeding
@@ -38,7 +41,7 @@ class EducationDetailBodyParams(TypedDict):
 
 class OpleidingSuggestieBodyParams(TypedDict, total=False):
     siteId: str
-    niveau: int
+    opleidingsniveau: int
     term: str  # crebo
     pageSize: int
 
@@ -50,43 +53,41 @@ class LocatieSuggestieBodyParams(TypedDict, total=False):
     lon: float
 
 
-class EducatieSearchResultBodyParams(TypedDict, total=False):
+class SearchBodyParams(TypedDict, total=False):
+    # Gedeelde parameters van education-search en organization-search
     siteId: str
     pageSize: int
     page: int
-    niveau: int
-    type: int  # 1=stage, 2=leerbaan
-    range: int
+    opleidingsniveau: int
+    straal: int  # zonder straal geeft een zoekopdracht met plaatsPostcode 0 resultaten
     crebocode: int
     plaatsPostcode: str
-    buitenlandseBedrijven: bool
-    sector: str  # see filters > id: sectoren.id
-    companyType: str  # see filters -> id: sbi.id -- can be multiple times
-    learningPath: str  # see filters -> id: leerwegen.id
+    locatieType: str  # Plaats, Postcode, Regio, Land
+    sort: str  # zie enums.Sortering
+    termen: str  # spatie-gescheiden trefwoorden
+    soortBedrijf: str  # kan meerdere keren
+    bedrijfsgrootte: str  # kan meerdere keren
 
 
-class OrganizationSearchResultBodyParams(TypedDict, total=False):
-    siteId: str
-    pageSize: int
-    page: int
-    plaatsPostcode: str
-    range: int
-    crebocode: int
-    organization: str
-    companyType: str  # see filters -> id: sbi.id -- can be multiple times
-    sort: str  # BPVO_REGISTRATIES # ???
-    direction: Literal["ASCENDING", "DESCENDING"]
-    aantalLeerplaatsen: int
+class EducatieSearchResultBodyParams(SearchBodyParams, total=False):
+    regio: str  # zie /regios
+    leerweg: str  # maar één waarde, anders HTTP 500
+    kenmerken: str  # kan meerdere keren (EN)
+    vergoedingen: str  # kan meerdere keren
+    startInMonths: int
+    alleWerkprocessenUitvoerbaar: bool
+
+
+class OrganizationSearchResultBodyParams(SearchBodyParams, total=False):
+    organisatie: str  # (deel van) de naam
+    sectoren: str
+    kenmerken: str
+    land: str  # landcode, bijv. NL
+    buitenland: bool
+    aantalLeerplaatsen: int  # alleen 0 is geldig: leerbedrijven zonder open leerplaatsen
 
 
 class StudyLocationBodyParams(TypedDict, total=False):
     crebo: int
     lat: float
     lon: float
-
-
-class BaseBodyParams(TypedDict, total=False):
-    plaatsPostcode: str
-    range: int
-    crebocode: int
-    niveau: int
