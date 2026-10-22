@@ -24,7 +24,7 @@ async def main() -> None:
 
     try:
         niveau = Niveau.MBO_4
-        plaats_postcode = "Amsterdam"
+        plaats_postcode = None
         crebocode = 25998
         straal = Straal.KM_50
 
