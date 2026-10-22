@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from internals._types.opleiding_suggestions import (
         OpleidingSuggestie as OpleidingSuggestiePayload,
+        OpleidingSuggestieBodyData as OpleidingSuggestieBodyDataPayload,
         OpleidingSuggestieBodyDataItem as OpleidingSuggestieBodyDataItemPayload,
     )
 
@@ -59,16 +60,17 @@ class OpleidingSuggestie:
         "total_pages",
     )
 
-    def __init__(self, data: OpleidingSuggestiePayload) -> None:
-        body_data = data.get("body", {}).get("data", {})
+    def __init__(self, data: OpleidingSuggestiePayload | OpleidingSuggestieBodyDataPayload) -> None:
+        # De API geeft tegenwoordig {"items": [...]} terug, oudere responses zaten in body.data
+        body_data = data.get("body", {}).get("data", {}) if "body" in data else data
 
         self.has_next_page: bool = body_data.get("hasNextPage", False)
         self.has_previous_page: bool = body_data.get("hasPreviousPage", False)
         self.page_number: int = body_data.get("pageNumber", 0)
-        self.total_count: int = body_data.get("totalCount", 0)
-        self.total_pages: int = body_data.get("totalPages", 0)
+        items = body_data.get("items") or []
+        self.total_count: int = body_data.get("totalCount", len(items))
+        self.total_pages: int = body_data.get("totalPages", 1 if items else 0)
 
-        items = body_data.get("items", [])
         self._opleidingen = [Opleiding(item) for item in items]
 
     def __repr__(self) -> str:

@@ -85,9 +85,9 @@ class LocatieSuggestie:
 
     __slots__ = ("_locaties",)
 
-    def __init__(self, data: LocatieSuggestiePayload) -> None:
-        body = data.get("body", {})
-        items = body.get("data", {})
+    def __init__(self, data: LocatieSuggestiePayload | list[LocatieSuggestieBodyDataItemPayload]) -> None:
+        # De API geeft tegenwoordig direct een lijst terug, oudere responses zaten in body.data
+        items = data if isinstance(data, list) else data.get("body", {}).get("data", [])
 
         self._locaties = [Locatie(item) for item in items]
 

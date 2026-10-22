@@ -11,7 +11,7 @@ class OpleidingSuggestieBody(TypedDict):
     data: OpleidingSuggestieBodyData
 
 
-class OpleidingSuggestieBodyData(TypedDict):
+class OpleidingSuggestieBodyData(TypedDict, total=False):
     hasNextPage: bool
     hasPreviousPage: bool
     pageNumber: int
