@@ -234,14 +234,23 @@ class OrganisationDetail(Organisatie):
         Stages die de organisatie op dit moment aanbiedt.
     soort_bedrijf: str | None
         Soort bedrijf (branche) volgens de SBI-indeling, indien aanwezig.
+    sbi: str | None
+        ID van de SBI-code; dezelfde waarde als `SoortBedrijf` en het ``soortBedrijf`` filter.
+    acroniem: str | None
+        Afkorting van de organisatienaam, indien aanwezig.
+    opleidingsgebieden: list[str]
+        Namen van de opleidingsgebieden waarvoor de organisatie erkend is.
     """
 
     __slots__ = (
         "_erkenning",
         "_leerplaatsen",
         "_personen",
+        "acroniem",
         "informatie_leren_werken",
         "informatie_student",
+        "opleidingsgebieden",
+        "sbi",
         "soort_bedrijf",
         "telefoonnummer",
     )
@@ -253,6 +262,9 @@ class OrganisationDetail(Organisatie):
         self.informatie_leren_werken: str | None = data.get("informatieLerenWerken")
         self.informatie_student: str | None = data.get("informatieStudent")
         self.soort_bedrijf: str | None = data.get("soortBedrijf")
+        self.sbi: str | None = data.get("sbi") or None
+        self.acroniem: str | None = data.get("acroniem") or None
+        self.opleidingsgebieden: list[str] = [g.get("naam", "") for g in data.get("opleidingsgebieden") or []]
 
         self._personen = data.get("personen", [])
         self._leerplaatsen = data.get("leerplaatsen", [])

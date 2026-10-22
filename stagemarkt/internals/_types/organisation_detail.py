@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class AdresLand(TypedDict):
@@ -76,6 +76,11 @@ class Erkenning(TypedDict):
     kwalificaties: list[KwalificatieWithKerntaken]
 
 
+class Opleidingsgebied(TypedDict):
+    id: str
+    naam: str
+
+
 class OrganisationDetail(TypedDict):
     aantalLeerplaatsen: int
     bedrijfsgrootte: str | None
@@ -92,7 +97,14 @@ class OrganisationDetail(TypedDict):
     website: str | None
     personen: list[Person]
     vestigingsadres: VestigingsAdres
-    leerplaatsen: list[dict]
+    leerplaatsen: list[dict[str, Any]]
     informatieLerenWerken: str | None
     informatieStudent: str | None
     erkenning: Erkenning | None
+    acroniem: str | None
+    sbi: str | None
+    opleidingsgebieden: list[Opleidingsgebied]
+    oudeLeerbedrijfIds: list[str]
+    kvKNaam: str | None
+    kvKNummer: str | None
+    kvKVestigingsNummer: str | None
