@@ -8,11 +8,13 @@ from .afbeelding import *
 from .educatie import *
 from .education_detail import *
 from .filters import *
+from .formulier import *
 from .kerntaak import *
 from .locatie import *
 from .opleiding import *
 from .organisatie import *
 from .organisation_detail import *
+from .regio import *
 from .study_location import *
 
 __all__ = (
@@ -20,12 +22,17 @@ __all__ = (
     "Educatie",
     "EducatieFilters",
     "EducationDetail",
+    "FilterDefinitie",
+    "Formulier",
+    "FormulierVeld",
     "Kerntaak",
     "KerntaakSubtaak",
     "Kwalificatie",
     "Locatie",
     "LocatiePlaats",
     "LocatieSuggestie",
+    "MailAlert",
+    "MailAlertItem",
     "Opleiding",
     "OpleidingSuggestie",
     "Organisatie",
@@ -34,6 +41,10 @@ __all__ = (
     "OrganisationDetailErkenning",
     "OrganisationDetailKwalificatie",
     "OrganisationDetailPerson",
+    "RegioInfo",
+    "StagePreview",
     "StudyLocation",
     "Vergoeding",
+    "ZoekFilter",
+    "ZoekFilterOptie",
 )
